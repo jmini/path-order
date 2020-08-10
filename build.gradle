@@ -168,8 +168,6 @@ release {
 
 task doRelease {
     dependsOn(
-        'publishToSonatype',
-        'asciidoctor',
-        'gitPublishPush'
+        'publishToSonatype'
     )
 }
