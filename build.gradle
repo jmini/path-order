@@ -1,0 +1,175 @@
+plugins {
+    id 'java'
+    id 'maven-publish'
+    id 'signing'
+    id 'org.asciidoctor.convert' version '2.4.0'
+    id 'org.ajoberstar.git-publish' version '3.0.0-rc.1'
+    id 'com.diffplug.spotless' version '5.1.1'
+    id 'net.researchgate.release' version '2.6.0'
+    id 'de.marcphilipp.nexus-publish' version '0.3.0'
+    id 'io.codearte.nexus-staging' version '0.21.0'
+}
+
+wrapper {
+    gradleVersion = '5.6.4'
+}
+
+group = 'fr.jmini.utils'
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+repositories {
+    jcenter()
+}
+
+task sourcesJar(type: Jar, dependsOn: classes) {
+    classifier = 'sources'
+    from sourceSets.main.allSource
+}
+
+task javadocJar(type: Jar) {
+    from javadoc
+    classifier = 'javadoc'
+}
+
+signing {
+    useGpgCmd()
+    sign(publishing.publications)
+}
+
+tasks.withType(Sign) {
+    onlyIf {
+        project.hasProperty('signing.gnupg.keyName')
+    }
+}
+
+dependencies {
+    testImplementation "org.junit.jupiter:junit-jupiter-api:$junitVersion"
+    testImplementation "org.assertj:assertj-core:$assertjVersion"
+
+    testRuntime "org.junit.jupiter:junit-jupiter-engine:$junitVersion"
+}
+
+test {
+    useJUnitPlatform()
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            pom {
+                name = 'Path order'
+                description = 'Libraty to order paths'
+                packaging = 'jar'
+                url = 'https://' + "$githubRepositoryOwner" + '.github.io/' + "$githubRepositoryName" + '/'
+                licenses {
+                    license {
+                        name = 'Eclipse Public License - v 2.0'
+                        url = 'https://www.eclipse.org/org/documents/epl-2.0/EPL-2.0.html'
+                    }
+                }
+                developers {
+                    developer {
+                        id = 'jmini'
+                        name = 'Jeremie Bresson'
+                        email = 'dev@jmini.fr'
+                    }
+                }
+                scm {
+                    connection = 'scm:git:https://github.com/' + "$githubRepositoryOwner" + '/' + "$githubRepositoryName" + '.git'
+                    developerConnection = 'scm:git:https://github.com/' + "$githubRepositoryOwner" + '/' + "$githubRepositoryName" + '.git'
+                    url = 'https://github.com/' + "$githubRepositoryOwner" + '/' + "$githubRepositoryName" + '/'
+                }
+            }
+            from components.java
+            artifact sourcesJar
+            artifact javadocJar
+        }
+    }
+}
+
+nexusPublishing {
+    repositories {
+        sonatype {
+            packageGroup = 'fr.jmini'
+            username = project.findProperty('sonatypeUser') ?: ''
+            password = project.findProperty('sonatypePassword') ?: ''
+        }
+    }
+}
+
+nexusStaging {
+    packageGroup = 'fr.jmini'
+    username = project.findProperty('sonatypeUser') ?: ''
+    password = project.findProperty('sonatypePassword') ?: ''
+}
+
+def buildDate() {
+    return new Date().format('yyyy-MM-dd')
+}
+
+asciidoctorj {
+    version = "$asciidoctorjVersion"
+}
+
+asciidoctor {
+    sourceDir = file('src/docs/asciidoc')
+    outputDir = file('build/docs')
+    attributes = ['revdate'             : "${buildDate()}",
+                  'project-version'     : "$version",
+                  'attribute-missing'    : 'warn',
+                  'source-highlighter'  : 'coderay',
+                  'imagesdir'           : '',
+                  'toc'                 : 'left',
+                  'icons'               : 'font',
+                  'toclevels'           : '3',
+                  'sectanchors'         : 'true',
+                  'idprefix'            : '',
+                  'idseparator'         : '-',
+                  'docinfo1'            : 'true']
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        asciidoctor "fr.jmini.asciidoctorj:git-link:3.2.1"
+    }
+}
+
+gitPublish {
+    repoUri = 'git@github.com:' + "$githubRepositoryOwner" + '/' + "$githubRepositoryName" + '.git'
+    branch = 'gh-pages'
+
+    contents {
+        from "${file('build/docs/html5')}"
+    }
+
+    preserve {
+        include '.nojekyll'
+        exclude '.DS_Store'
+    }
+
+    commitMessage = "Update the 'gh-pages' branch."
+}
+
+spotless {
+  java {
+    importOrder 'java', 'javax', 'org', 'com', ''
+    removeUnusedImports()
+
+    // available versions are: https://github.com/diffplug/spotless/tree/master/lib-extra/src/main/resources/com/diffplug/spotless/extra/eclipse_jdt_formatter
+    eclipse('4.13.0').configFile('.settings/org.eclipse.jdt.core.prefs')
+  }
+}
+
+release {
+    buildTasks = ['doRelease']
+}
+
+task doRelease {
+    dependsOn(
+        'publishToSonatype',
+        'asciidoctor',
+        'gitPublishPush'
+    )
+}

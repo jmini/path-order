@@ -1,0 +1,203 @@
+:rootdir: ../../..
+:github-readme: {rootdir}/README.adoc
+:srcdir: {rootdir}/src/
+:listing-caption: Listing
+:revdate: {project-builddate}
+:revnumber: {project-version}
+
+include::{github-readme}[tags=vardef]
+
+:projectpage: https://github.com/{gh-repo-owner}/{gh-repo-name}
+
+include::{github-readme}[tags=header]
+
+== URLs
+
+* link:{homepage}[Project home] (this page)
+* link:{projectpage}[GitHub project]
+* link:{issues}[Issue tracker]
+
+TIP: Do you want to improve this page? Please git-link:self[edit it on GitHub, edit].
+
+== Big picture
+
+This java library provides code to deals with following problem:
+
+=== Natural vs alphabetical ordering
+
+When numbers are present in the file name, the alphabetical order (also called lexicographic) is often not what the user expect.
+
+----
+picture_1.png
+picture_10.png
+picture_11.png
+picture_2.png
+picture_3.png
+picture_4.png
+picture_5.png
+picture_6.png
+picture_7.png
+picture_8.png
+picture_9.png
+----
+
+The library provides a comparator to manage natural ordering: (`picture_1.png`, `picture_2.png` .. `picture_9.png`, `picture_10.png`, `picture_11.png`)
+
+=== Fixed ordering
+
+Sometimes the file order must be defined by additional metadata, because no algorithm can predict what the user expects:
+
+----
+chapter-four.txt
+chapter-one.txt
+chapter-three.txt
+chapter-two.txt
+----
+
+
+=== Qualify files
+
+An other requirement is to qualify a file (attach a label such as `draft`, `internal` to the file).
+
+----
+file.html
+file.draft.html
+file.internal.html
+----
+
+The library is using as label a name suffix separated with a dot for this purpose.
+
+== Technical details
+
+* A file name is decomposed in three parts: `base-name[[.suffix].extension]`
+** `base-name`: is the main name
+** `suffix`: is optionally between the file name and the extension.
+** `extension`: is quite common in a file system, it is used to indicate the type of file. Folders do not have any extension.
+* Because the dot is used to separate the parts, it is not allowed to use it in the base-name.
+
+Example:
+
+|===
+| File name | Base name | Suffix | Extension
+
+| `file` | `file` | - | -
+| `file.txt` | `file` | - | `txt`
+| `file.internal.txt` | `file` | `internal` | `txt`
+|===
+
+The library doesn't enforce how the metadata will be provided.
+A possible implementation is to use a `pages.yaml` file inside each folder.
+
+----
+├── chapter1
+│   ├── sec1.html
+│   ├── sec2.html
+│   ├── sec3.html
+│   └── pages.yaml
+├── chapter2
+│   ├── index.html
+│   ├── other.html
+│   └── pages.yaml
+├── four.html
+├── one.html
+├── pages.yaml
+├── three.html
+└── two.html
+----
+
+This `pages.yaml` provides following information:
+
+[source, yaml]
+----
+order:
+  - one
+  - two
+  - three
+  - four
+defaultOrder : NATURAL
+----
+
+The ordering is defined with following rules:
+
+* If `index` is not present in the `order` list, it is the first file
+* All the files are sorted according to the order
+* The remaining items are orderer using the `defaultOrder`
+
+Values for `defaultOrder`:
+
+* `LEXICOGRAPHIC`: sorts in alphabetical order of their component letters
+* `LEXICOGRAPHIC_REVERSED`: sorts in the reversed order of `LEXICOGRAPHIC`.
+* `NATURAL`: sorts strings containing a mix of letters and numbers. Given strings of mixed characters and numbers, it sorts the numbers in value order, while sorting the non-numbers in ASCII order.
+* `NATURAL_REVERSED`: sorts strings containing a mix of letters and numbers in the reversed order of `NATURAL`.   
+
+== Source Code
+
+As for any java project, the source code of the plugin is available in the git-link:src/[src/] folder.
+
+=== Build
+
+This project is using gradle.
+
+Command to build the sources locally:
+
+----
+./gradlew build
+----
+
+Command to deploy to your local maven repository:
+
+----
+./gradlew publishToMavenLocal
+----
+
+Command to build the documentation page:
+
+----
+./gradlew asciidoctor
+----
+
+The output of this command is an HTML page located at `<git repo root>/build/docs/html5/index.html`.
+
+==== For project maintainers
+
+`signing.gnupg.keyName` and `signing.gnupg.passphrase` are expected to be set in your local `gradle.properties` file to be able to sign.
+`sonatypeUser` and `sonatypePassword` are expected to be set in order to be able to publish to a distant repository.
+					
+Command to build and publish the result to maven central:
+
+----
+./gradlew publishToSonatype
+----
+
+Command to upload the documentation page on GitHub pages:
+
+----
+./gradlew gitPublishPush
+----
+
+Command to perform a release:
+
+----
+./gradlew release -Prelease.useAutomaticVersion=true
+----
+
+==== Using ssh-agent
+
+Some tasks requires to push into the distant git repository (release task or updating the `gh-pages` branch).
+If they are failing with errors like this:
+----
+org.eclipse.jgit.api.errors.TransportException: ... Permission denied (publickey).
+---- 
+
+Then `ssh-agent` can be used.
+----
+eval `ssh-agent -s`
+ssh-add ~/.ssh/id_rsa
+----
+(link:https://superuser.com/a/990447/[source] for this approach)
+
+
+include::{github-readme}[tags=contact-section]
+
+include::{github-readme}[tags=license-section]
+
