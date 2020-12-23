@@ -127,7 +127,8 @@ asciidoctor {
     outputDir = file('build/docs')
     attributes = ['revdate'             : "${buildDate()}",
                   'project-version'     : "$version",
-                  'attribute-missing'    : 'warn',
+                  'last-stable-version' : "$lastVersion",
+                  'attribute-missing'   : 'warn',
                   'source-highlighter'  : 'coderay',
                   'imagesdir'           : '',
                   'toc'                 : 'left',
