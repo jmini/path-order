@@ -1,12 +1,15 @@
 package fr.jmini.utils.pathorder;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -499,11 +502,70 @@ public class AbsolutePathComparatorTest {
         runCompare(orderSupplier, nameSuffixes, list2, list1, Collections.emptyList());
     }
 
+    @Test
+    void testCompareWithNullSupplier() throws Exception {
+        Function<Path, Optional<SortConfig>> orderSupplier = null;
+        List<String> list = Collections.emptyList();
+        assertThatThrownBy(() -> runCompare(orderSupplier, list, list, Collections.emptyList())).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void testCompareWithSupplierReturningEmpty() throws Exception {
+        List<String> parameters = new ArrayList<>();
+        Function<Path, Optional<SortConfig>> orderSupplier = p -> {
+            parameters.add(p.toString());
+            return Optional.empty();
+        };
+
+        List<String> list = Arrays.asList(
+                "/one/alice.adoc",
+                "/one/bob.adoc",
+                "/two/alice.adoc",
+                "/two/bob.adoc");
+        runCompare(orderSupplier, list, list, Collections.emptyList());
+
+        assertThat(parameters).containsExactlyInAnyOrder("/", "/one", "/two");
+    }
+
+    @Test
+    void testCompareWithNullDefaultOrder() throws Exception {
+        Function<Path, SortConfig> orderSupplier = p -> new SortConfigImpl(null, null);
+        List<String> nameSuffixes = Collections.emptyList();
+        List<String> list1 = Collections.emptyList();
+        assertThatThrownBy(() -> runCompare(orderSupplier, null, nameSuffixes, list1, list1, Collections.emptyList())).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void testCompareWithNullSuffixes() throws Exception {
+        List<String> parameters = new ArrayList<>();
+        Function<Path, SortConfig> orderSupplier = p -> {
+            parameters.add(p.toString());
+            return new SortConfigImpl(null, null);
+        };
+
+        List<String> list = Arrays.asList(
+                "/folder/alice.adoc",
+                "/folder/bob.adoc",
+                "/folder/charlie.adoc");
+        runCompare(orderSupplier, Order.NATURAL, null, list, list, Collections.emptyList());
+        assertThat(parameters).containsExactly("/folder");
+
+    }
+
     private void runCompare(Function<Path, SortConfig> orderSupplier, List<String> nameSuffixes, List<String> list, List<String> expected, List<String> expectedMessages) {
         runCompare(orderSupplier, Order.LEXICOGRAPHIC, nameSuffixes, list, expected, expectedMessages);
     }
 
     private void runCompare(Function<Path, SortConfig> orderSupplier, Order orderWhenNotDefined, List<String> nameSuffixes, List<String> list, List<String> expected, List<String> expectedMessages) {
+        Function<Path, Optional<SortConfig>> supplier = (Path p) -> Optional.ofNullable(orderSupplier.apply(p));
+        runCompareWithOptionalSupplier(supplier, orderWhenNotDefined, nameSuffixes, list, expected, expectedMessages);
+    }
+
+    private void runCompare(Function<Path, Optional<SortConfig>> orderSupplier, List<String> list, List<String> expected, List<String> expectedMessages) {
+        runCompareWithOptionalSupplier(orderSupplier, Order.LEXICOGRAPHIC, null, list, expected, expectedMessages);
+    }
+
+    private void runCompareWithOptionalSupplier(Function<Path, Optional<SortConfig>> orderSupplier, Order orderWhenNotDefined, List<String> nameSuffixes, List<String> list, List<String> expected, List<String> expectedMessages) {
         AbsolutePathComparator comparator = new AbsolutePathComparator(orderSupplier, nameSuffixes, orderWhenNotDefined);
         List<String> result = list.stream()
                 .map(Paths::get)

@@ -9,20 +9,27 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 
 public class AbsolutePathComparator implements Comparator<Path> {
 
-    private Map<Path, SortConfig> configMap = new HashMap<>();
-    private Function<Path, SortConfig> sortConfigSupplier;
+    private Map<Path, Optional<SortConfig>> configMap = new HashMap<>();
+    private Function<Path, Optional<SortConfig>> sortConfigSupplier;
     private Set<String> messages = new HashSet<>();
     private List<String> suffixes;
     private Order orderWhenNotDefined;
 
-    public AbsolutePathComparator(Function<Path, SortConfig> sortConfigSupplier, List<String> suffixes, Order orderWhenNotDefined) {
+    public AbsolutePathComparator(Function<Path, Optional<SortConfig>> sortConfigSupplier, List<String> suffixes, Order orderWhenNotDefined) {
+        if (sortConfigSupplier == null) {
+            throw new IllegalArgumentException("sortConfigSupplier can not be null");
+        }
         this.sortConfigSupplier = sortConfigSupplier;
         this.suffixes = suffixes;
+        if (orderWhenNotDefined == null) {
+            throw new IllegalArgumentException("orderWhenNotDefined can not be null");
+        }
         this.orderWhenNotDefined = orderWhenNotDefined;
     }
 
@@ -42,8 +49,9 @@ public class AbsolutePathComparator implements Comparator<Path> {
         String nameWithoutSuffix2 = getNameWithoutSuffix(name2);
 
         Order defaultOrder;
-        SortConfig sortConfig = configMap.computeIfAbsent(commonPath, sortConfigSupplier);
-        if (sortConfig != null) {
+        Optional<SortConfig> optinalSortConfig = configMap.computeIfAbsent(commonPath, sortConfigSupplier);
+        if (optinalSortConfig.isPresent()) {
+            SortConfig sortConfig = optinalSortConfig.get();
             if (sortConfig.getDefaultOrder() != null) {
                 defaultOrder = sortConfig.getDefaultOrder();
             } else {
