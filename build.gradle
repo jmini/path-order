@@ -73,7 +73,7 @@ publishing {
         mavenJava(MavenPublication) {
             pom {
                 name = 'Path order'
-                description = 'Libraty to order paths'
+                description = 'Library to order paths'
                 packaging = 'jar'
                 url = 'https://' + "$githubRepositoryOwner" + '.github.io/' + "$githubRepositoryName" + '/'
                 licenses {
